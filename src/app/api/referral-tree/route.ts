@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { Pool as PgPool } from "pg";
 import { getPool } from "@/server/db";
 
-const MAX_DEPTH = 5;
+const MAX_DEPTH = 6;
 
 interface SwapRow {
   tx_hash: string;

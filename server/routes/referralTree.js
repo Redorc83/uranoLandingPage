@@ -3,7 +3,7 @@ const { pool } = require('../db.js');
 
 const router = Router();
 
-const MAX_DEPTH = 5;
+const MAX_DEPTH = 6;
 
 async function getSwapsForWallet(wallet) {
   const { rows } = await pool.query(

@@ -20,11 +20,22 @@ import ContentCopyRoundedIcon from "@mui/icons-material/ContentCopyRounded";
 import CheckRoundedIcon from "@mui/icons-material/CheckRounded";
 
 
+import AccountBalanceWalletRoundedIcon from "@mui/icons-material/AccountBalanceWalletRounded";
+
 import theme from "@/theme/theme";
 import { useWalletConnect } from "@/shared/wallet";
 import type { ReferralNode, ReferralSwap } from "../types";
 
-const DEPTH_LABELS = ["You", "1st", "2nd", "3rd", "4th", "5th"];
+const DEPTH_LABELS = ["You", "1st", "2nd", "3rd", "4th", "5th", "6th"];
+const DEPTH_COLORS = [
+  "#6DE7C2",
+  "#5ED4B5",
+  "#4FBFA8",
+  "#40AA9B",
+  "#31968E",
+  "#228181",
+  "#1A6D6D",
+];
 
 function truncate(addr: string): string {
   return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
@@ -47,6 +58,38 @@ function sumDescendantBought(node: ReferralNode): number {
     (acc, child) => acc + child.total_bought + sumDescendantBought(child),
     0,
   );
+}
+
+interface LevelStats {
+  level: number;
+  label: string;
+  wallets: number;
+  swaps: number;
+  bought: number;
+}
+
+function collectLevelStats(node: ReferralNode): LevelStats[] {
+  const map = new Map<number, { wallets: number; swaps: number; bought: number }>();
+
+  function walk(n: ReferralNode) {
+    const prev = map.get(n.depth) ?? { wallets: 0, swaps: 0, bought: 0 };
+    map.set(n.depth, {
+      wallets: prev.wallets + 1,
+      swaps: prev.swaps + n.total_swaps,
+      bought: prev.bought + n.total_bought,
+    });
+    for (const child of n.referrals) walk(child);
+  }
+
+  walk(node);
+
+  return Array.from(map.entries())
+    .sort(([a], [b]) => a - b)
+    .map(([level, data]) => ({
+      level,
+      label: DEPTH_LABELS[level] ?? `L${level}`,
+      ...data,
+    }));
 }
 
 function CopyButton({ value }: { value: string }) {
@@ -136,9 +179,9 @@ function TreeNode({ node, isRoot = false }: { node: ReferralNode; isRoot?: boole
               left: 0,
               top: 0,
               bottom: 0,
-              width: "1px",
-              background:
-                "linear-gradient(180deg, rgba(109,231,194,0.35) 0%, rgba(109,231,194,0.05) 100%)",
+              width: "2px",
+              borderRadius: 1,
+              background: `linear-gradient(180deg, ${DEPTH_COLORS[node.depth] ?? DEPTH_COLORS[6]}88 0%, ${DEPTH_COLORS[node.depth] ?? DEPTH_COLORS[6]}15 100%)`,
             },
       }}
     >
@@ -245,10 +288,11 @@ function TreeNode({ node, isRoot = false }: { node: ReferralNode; isRoot?: boole
 }
 
 export default function ReferralStats() {
-  const { address } = useWalletConnect();
+  const { address, connect, isConnecting, isWalletAvailable } = useWalletConnect();
   const [tree, setTree] = useState<ReferralNode | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [walletError, setWalletError] = useState<string | null>(null);
 
   const fetchTree = useCallback(async (wallet: string) => {
     setLoading(true);
@@ -277,11 +321,13 @@ export default function ReferralStats() {
     if (!tree) return null;
     const totalDownline = countDescendants(tree);
     const downstreamBought = sumDescendantBought(tree);
+    const levels = collectLevelStats(tree);
     return {
       totalDownline,
       downstreamBought,
       selfBought: tree.total_bought,
       selfSwaps: tree.total_swaps,
+      levels,
     };
   }, [tree]);
 
@@ -317,7 +363,7 @@ export default function ReferralStats() {
             Referral Tree
           </Typography>
           <Typography sx={{ color: "rgba(255,255,255,0.6)", fontSize: 13.5 }}>
-            Purchases attributed to your wallet and its downline, up to the 5th level.
+            Purchases attributed to your wallet and its downline, up to the 6th level.
           </Typography>
         </Stack>
 
@@ -340,16 +386,58 @@ export default function ReferralStats() {
       </Stack>
 
       {!address && (
-        <Alert
-          severity="info"
-          sx={{
-            background: "rgba(109,231,194,0.08)",
-            color: "#6DE7C2",
-            border: "1px solid rgba(109,231,194,0.2)",
-          }}
-        >
-          Connect your wallet to see your referral tree.
-        </Alert>
+        <Stack alignItems="center" gap={2} py={4}>
+          <AccountBalanceWalletRoundedIcon sx={{ fontSize: 48, color: "rgba(109,231,194,0.4)" }} />
+          <Typography sx={{ color: "rgba(255,255,255,0.6)", fontSize: 14.5, textAlign: "center" }}>
+            Connect your wallet to see your referral tree.
+          </Typography>
+          <Button
+            variant="contained"
+            onClick={() => {
+              if (!isWalletAvailable) {
+                setWalletError("Please install MetaMask or another Web3 wallet to connect.");
+                return;
+              }
+              setWalletError(null);
+              void connect();
+            }}
+            disabled={isConnecting}
+            startIcon={
+              isConnecting ? (
+                <CircularProgress size={18} sx={{ color: "#000" }} />
+              ) : (
+                <AccountBalanceWalletRoundedIcon sx={{ fontSize: 20 }} />
+              )
+            }
+            sx={{
+              background: theme.palette.uranoGradient,
+              color: "#000",
+              borderRadius: 2,
+              textTransform: "none",
+              fontWeight: 600,
+              px: 4,
+              py: 1.25,
+              fontSize: 15,
+              "&:hover": {
+                background: theme.palette.uranoGradient,
+                opacity: 0.9,
+              },
+            }}
+          >
+            {isConnecting ? "Connecting..." : "Connect Wallet"}
+          </Button>
+          {walletError && (
+            <Alert
+              severity="warning"
+              sx={{
+                background: "rgba(255,180,50,0.08)",
+                border: "1px solid rgba(255,180,50,0.2)",
+              }}
+            >
+              {walletError}
+            </Alert>
+          )}
+        </Stack>
       )}
 
       {error && (
@@ -359,21 +447,52 @@ export default function ReferralStats() {
       )}
 
       {summary && (
-        <Stack direction={{ xs: "column", sm: "row" }} gap={1.5} mb={3}>
-          {[
-            { label: "Your swaps", value: `${summary.selfSwaps}` },
-            { label: "Your $URANO", value: formatAmount(summary.selfBought) },
-            { label: "Downline wallets", value: `${summary.totalDownline}` },
-            { label: "Downline $URANO", value: formatAmount(summary.downstreamBought) },
-          ].map((s) => (
+        <>
+          {/* Global stats */}
+          <Stack direction={{ xs: "column", sm: "row" }} gap={1.5} mb={2}>
+            {[
+              { label: "Your swaps", value: `${summary.selfSwaps}` },
+              { label: "Your $URANO", value: formatAmount(summary.selfBought) },
+              { label: "Downline wallets", value: `${summary.totalDownline}` },
+              { label: "Downline $URANO", value: formatAmount(summary.downstreamBought) },
+            ].map((s) => (
+              <Box
+                key={s.label}
+                sx={{
+                  flex: 1,
+                  px: 2,
+                  py: 1.5,
+                  borderRadius: 2,
+                  background: "rgba(255,255,255,0.03)",
+                  border: "1px solid rgba(255,255,255,0.06)",
+                }}
+              >
+                <Typography
+                  sx={{
+                    fontSize: 11.5,
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
+                    color: "rgba(255,255,255,0.5)",
+                  }}
+                >
+                  {s.label}
+                </Typography>
+                <Typography sx={{ fontSize: { xs: 18, md: 22 }, fontWeight: 700, color: "#fff" }}>
+                  {s.value}
+                </Typography>
+              </Box>
+            ))}
+          </Stack>
+
+          {/* Per-level breakdown */}
+          {summary.levels.length > 1 && (
             <Box
-              key={s.label}
               sx={{
-                flex: 1,
+                mb: 3,
                 px: 2,
                 py: 1.5,
                 borderRadius: 2,
-                background: "rgba(255,255,255,0.03)",
+                background: "rgba(255,255,255,0.02)",
                 border: "1px solid rgba(255,255,255,0.06)",
               }}
             >
@@ -383,16 +502,62 @@ export default function ReferralStats() {
                   letterSpacing: "0.08em",
                   textTransform: "uppercase",
                   color: "rgba(255,255,255,0.5)",
+                  mb: 1,
                 }}
               >
-                {s.label}
+                Per-level breakdown
               </Typography>
-              <Typography sx={{ fontSize: { xs: 18, md: 22 }, fontWeight: 700, color: "#fff" }}>
-                {s.value}
-              </Typography>
+              <Stack gap={0.75}>
+                {summary.levels.map((lvl) => (
+                  <Stack
+                    key={lvl.level}
+                    direction="row"
+                    alignItems="center"
+                    gap={1.5}
+                    sx={{ py: 0.5 }}
+                  >
+                    <Chip
+                      size="small"
+                      label={lvl.label}
+                      sx={{
+                        height: 20,
+                        fontSize: 11,
+                        fontWeight: 600,
+                        minWidth: 40,
+                        background: `${DEPTH_COLORS[lvl.level] ?? DEPTH_COLORS[6]}22`,
+                        color: DEPTH_COLORS[lvl.level] ?? DEPTH_COLORS[6],
+                        border: `1px solid ${DEPTH_COLORS[lvl.level] ?? DEPTH_COLORS[6]}55`,
+                      }}
+                    />
+                    <Typography sx={{ fontSize: 12.5, color: "rgba(255,255,255,0.7)", minWidth: 80 }}>
+                      {lvl.wallets} wallet{lvl.wallets !== 1 ? "s" : ""}
+                    </Typography>
+                    <Typography sx={{ fontSize: 12.5, color: "rgba(255,255,255,0.5)", minWidth: 70 }}>
+                      {lvl.swaps} swap{lvl.swaps !== 1 ? "s" : ""}
+                    </Typography>
+                    <Typography sx={{ fontSize: 12.5, color: "#6DE7C2", fontWeight: 500 }}>
+                      {formatAmount(lvl.bought)} URANO
+                    </Typography>
+                    {/* Visual bar */}
+                    {summary.downstreamBought + summary.selfBought > 0 && (
+                      <Box sx={{ flex: 1, ml: 1 }}>
+                        <Box
+                          sx={{
+                            height: 4,
+                            borderRadius: 2,
+                            background: `${DEPTH_COLORS[lvl.level] ?? DEPTH_COLORS[6]}55`,
+                            width: `${Math.max(2, (lvl.bought / (summary.downstreamBought + summary.selfBought)) * 100)}%`,
+                            transition: "width 0.3s ease",
+                          }}
+                        />
+                      </Box>
+                    )}
+                  </Stack>
+                ))}
+              </Stack>
             </Box>
-          ))}
-        </Stack>
+          )}
+        </>
       )}
 
       {tree && <TreeNode node={tree} isRoot />}
