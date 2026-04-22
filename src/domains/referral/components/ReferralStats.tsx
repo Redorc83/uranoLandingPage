@@ -21,6 +21,9 @@ import CheckRoundedIcon from "@mui/icons-material/CheckRounded";
 
 
 import AccountBalanceWalletRoundedIcon from "@mui/icons-material/AccountBalanceWalletRounded";
+import ShareRoundedIcon from "@mui/icons-material/ShareRounded";
+import XIcon from "@mui/icons-material/X";
+import TelegramIcon from "@mui/icons-material/Telegram";
 
 import theme from "@/theme/theme";
 import { useWalletConnect } from "@/shared/wallet";
@@ -287,6 +290,139 @@ function TreeNode({ node, isRoot = false }: { node: ReferralNode; isRoot?: boole
   );
 }
 
+function ReferralLinkCard({ address }: { address: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const referralUrl =
+    typeof window === "undefined"
+      ? `/?ref=${address.toLowerCase()}`
+      : `${window.location.origin}/?ref=${address.toLowerCase()}`;
+
+  const shareMessage =
+    "Join me on Urano Ecosystem — on-chain tokenization powered by Arbitrum.";
+
+  const handleCopy = () => {
+    void navigator.clipboard.writeText(referralUrl).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  const xUrl = `https://x.com/intent/post?text=${encodeURIComponent(`${shareMessage} ${referralUrl}`)}`;
+  const tgUrl = "https://t.me/UranoEcosystem";
+
+  return (
+    <Box
+      sx={{
+        mb: 3,
+        p: 2,
+        borderRadius: 2,
+        background:
+          "radial-gradient(120% 120% at 0% 0%, rgba(109,231,194,0.06) 0%, rgba(21,21,21,0.95) 55%)",
+        border: "1px solid rgba(109,231,194,0.2)",
+      }}
+    >
+      <Stack direction="row" alignItems="center" gap={1} mb={1.25}>
+        <ShareRoundedIcon sx={{ fontSize: 18, color: "#6DE7C2" }} />
+        <Typography sx={{ fontSize: 13.5, fontWeight: 600, color: "rgba(255,255,255,0.8)" }}>
+          Your referral link
+        </Typography>
+      </Stack>
+
+      <Stack direction="row" alignItems="center" gap={1}>
+        <Box
+          sx={{
+            flex: 1,
+            display: "flex",
+            alignItems: "center",
+            gap: 1,
+            px: 1.5,
+            py: 1,
+            borderRadius: 1.5,
+            background: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(255,255,255,0.08)",
+            overflow: "hidden",
+          }}
+        >
+          <Typography
+            sx={{
+              flex: 1,
+              fontFamily: "monospace",
+              fontSize: { xs: 12, md: 13 },
+              color: "#6DE7C2",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {referralUrl}
+          </Typography>
+        </Box>
+
+        <Tooltip title={copied ? "Copied!" : "Copy link"} placement="top">
+          <Button
+            size="small"
+            onClick={handleCopy}
+            startIcon={
+              copied ? (
+                <CheckRoundedIcon sx={{ fontSize: 16 }} />
+              ) : (
+                <ContentCopyRoundedIcon sx={{ fontSize: 16 }} />
+              )
+            }
+            sx={{
+              background: theme.palette.uranoGradient,
+              color: "#000",
+              fontWeight: 600,
+              textTransform: "none",
+              borderRadius: 1.5,
+              px: 2,
+              minWidth: 90,
+              "&:hover": { background: theme.palette.uranoGradient, opacity: 0.92 },
+            }}
+          >
+            {copied ? "Copied!" : "Copy"}
+          </Button>
+        </Tooltip>
+
+        <Tooltip title="Share on X" placement="top">
+          <IconButton
+            size="small"
+            component="a"
+            href={xUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            sx={{
+              color: "rgba(255,255,255,0.6)",
+              border: "1px solid rgba(255,255,255,0.12)",
+              "&:hover": { borderColor: "rgba(109,231,194,0.55)", color: "#6DE7C2" },
+            }}
+          >
+            <XIcon sx={{ fontSize: 16 }} />
+          </IconButton>
+        </Tooltip>
+
+        <Tooltip title="Share on Telegram" placement="top">
+          <IconButton
+            size="small"
+            component="a"
+            href={tgUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            sx={{
+              color: "rgba(255,255,255,0.6)",
+              border: "1px solid rgba(255,255,255,0.12)",
+              "&:hover": { borderColor: "rgba(109,231,194,0.55)", color: "#6DE7C2" },
+            }}
+          >
+            <TelegramIcon sx={{ fontSize: 18 }} />
+          </IconButton>
+        </Tooltip>
+      </Stack>
+    </Box>
+  );
+}
+
 export default function ReferralStats() {
   const { address, connect, isConnecting, isWalletAvailable } = useWalletConnect();
   const [tree, setTree] = useState<ReferralNode | null>(null);
@@ -384,6 +520,8 @@ export default function ReferralStats() {
           </Button>
         )}
       </Stack>
+
+      {address && <ReferralLinkCard address={address} />}
 
       {!address && (
         <Stack alignItems="center" gap={2} py={4}>
