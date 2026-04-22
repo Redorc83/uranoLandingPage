@@ -211,6 +211,7 @@ export function useSwap(walletAddress: string | null) {
 
       const receipt = await tx.wait();
       setState((s) => ({ ...s, status: 'success', txHash: receipt.hash }));
+      void fetchBalance();
     } catch (err: unknown) {
       let message = 'Swap failed';
       if (err && typeof err === 'object' && 'code' in err) {
@@ -226,7 +227,7 @@ export function useSwap(walletAddress: string | null) {
       }
       setState((s) => ({ ...s, status: 'error', error: message }));
     }
-  }, [walletAddress, inputAmount, slippage, isETH]);
+  }, [walletAddress, inputAmount, slippage, isETH, fetchBalance]);
 
   const reset = useCallback(() => {
     setInputAmount('');
