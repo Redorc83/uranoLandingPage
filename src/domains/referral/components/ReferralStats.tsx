@@ -398,9 +398,8 @@ export default function ReferralStats() {
       {tree && <TreeNode node={tree} isRoot />}
 
       {address &&
-        tree &&
-        tree.referrals.length === 0 &&
-        tree.swaps.length === 0 &&
+        tree?.referrals.length === 0 &&
+        tree?.swaps.length === 0 &&
         !loading && (
           <Typography sx={{ mt: 2, color: "rgba(255,255,255,0.5)", textAlign: "center" }}>
             No activity yet. Share your referral link from the Purchase Urano section to start

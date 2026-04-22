@@ -61,7 +61,7 @@ export function useSwap(walletAddress: string | null) {
         setState((s) => ({ ...s, balance: formatEther(bal) }));
       } else {
         const usdc = new Contract(USDC_ADDRESS, ERC20_ABI, provider);
-        const bal = await usdc.balanceOf!(walletAddress);
+        const bal = await (usdc.balanceOf as (addr: string) => Promise<bigint>)(walletAddress);
         setState((s) => ({ ...s, balance: formatUnits(bal, USDC_DECIMALS) }));
       }
     } catch {
@@ -117,7 +117,7 @@ export function useSwap(walletAddress: string | null) {
 
     setState((s) => ({ ...s, status: 'quoting' }));
 
-    debounceRef.current = setTimeout(async () => {
+    debounceRef.current = setTimeout(() => void (async () => {
       try {
         if (!window.ethereum) throw new Error('No wallet');
         const provider = new BrowserProvider(window.ethereum);
@@ -130,13 +130,13 @@ export function useSwap(walletAddress: string | null) {
           ? parseEther(inputAmount)
           : parseUnits(inputAmount, USDC_DECIMALS);
 
-        const amounts = await router.getAmountsOut!(amountIn, path);
-        const estimated = formatUnits(amounts[path.length - 1], TOKEN_DECIMALS);
+        const amounts = await (router.getAmountsOut as (amountIn: bigint, path: string[]) => Promise<bigint[]>)(amountIn, path);
+        const estimated = formatUnits(amounts[path.length - 1]!, TOKEN_DECIMALS);
         setState((s) => ({ ...s, estimatedOutput: estimated, status: 'idle', error: null }));
       } catch {
         setState((s) => ({ ...s, estimatedOutput: '', status: 'idle', error: 'Failed to fetch quote' }));
       }
-    }, 500);
+    })(), 500);
 
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -176,39 +176,36 @@ export function useSwap(walletAddress: string | null) {
       // Approve USDC if needed
       if (!isETH) {
         const usdc = new Contract(USDC_ADDRESS, ERC20_ABI, signer);
-        const allowance = await usdc.allowance!(owner, V2_ROUTER_ADDRESS);
+        const allowance = await (usdc.allowance as (owner: string, spender: string) => Promise<bigint>)(owner, V2_ROUTER_ADDRESS);
         if (allowance < amountIn) {
-          const approveTx = await usdc.approve!(V2_ROUTER_ADDRESS, MaxUint256);
+          const approveTx = await (usdc.approve as (spender: string, amount: bigint) => Promise<{ wait: () => Promise<void> }>)(V2_ROUTER_ADDRESS, MaxUint256);
           await approveTx.wait();
         }
         setState((s) => ({ ...s, status: 'confirming' }));
       }
 
       const router = new Contract(V2_ROUTER_ADDRESS, ROUTER_ABI, signer);
-      const amounts = await router.getAmountsOut!(amountIn, path);
+      const amounts = await (router.getAmountsOut as (amountIn: bigint, path: string[]) => Promise<bigint[]>)(amountIn, path);
       const slippageBips = Math.round(slippage * 100);
-      const amountOutMin = (amounts[path.length - 1] * BigInt(10000 - slippageBips)) / BigInt(10000);
+      const amountOutMin = (amounts[path.length - 1]! * BigInt(10000 - slippageBips)) / BigInt(10000);
 
       const deadline = Math.floor(Date.now() / 1000) + 60 * 20;
 
       setState((s) => ({ ...s, status: 'pending' }));
 
-      let tx;
+      type TxResponse = { wait: () => Promise<{ hash: string }> };
+      let tx: TxResponse;
       if (isETH) {
-        tx = await router.swapExactETHForTokens!(
-          amountOutMin,
-          path,
-          owner,
-          deadline,
-          { value: amountIn },
+        tx = await (router.swapExactETHForTokens as (
+          amountOutMin: bigint, path: string[], to: string, deadline: number, overrides: { value: bigint }
+        ) => Promise<TxResponse>)(
+          amountOutMin, path, owner, deadline, { value: amountIn },
         );
       } else {
-        tx = await router.swapExactTokensForTokens!(
-          amountIn,
-          amountOutMin,
-          path,
-          owner,
-          deadline,
+        tx = await (router.swapExactTokensForTokens as (
+          amountIn: bigint, amountOutMin: bigint, path: string[], to: string, deadline: number
+        ) => Promise<TxResponse>)(
+          amountIn, amountOutMin, path, owner, deadline,
         );
       }
 

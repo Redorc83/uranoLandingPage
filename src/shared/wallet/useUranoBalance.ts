@@ -22,7 +22,7 @@ export function useUranoBalance(address: string | null): { balance: number; load
       try {
         const provider = new JsonRpcProvider(ARBITRUM_RPC);
         const token = new Contract(TOKEN_ADDRESS, ERC20_ABI, provider);
-        const raw = await token.balanceOf!(address);
+        const raw = await (token.balanceOf as (addr: string) => Promise<bigint>)(address);
         if (!cancelled) setBalance(parseFloat(formatUnits(raw, TOKEN_DECIMALS)));
       } catch {
         if (!cancelled) setBalance(0);
