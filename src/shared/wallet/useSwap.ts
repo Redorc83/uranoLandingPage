@@ -32,7 +32,7 @@ interface SwapState {
   balance: string;
 }
 
-export function useSwap(walletAddress: string | null) {
+export function useSwap(walletAddress: string | null, onSwapSuccess?: () => void) {
   const [inputToken, setInputToken] = useState<InputToken>('USDC');
   const [inputAmount, setInputAmount] = useState('');
   const [slippage, setSlippage] = useState(0.5);
@@ -212,6 +212,7 @@ export function useSwap(walletAddress: string | null) {
       const receipt = await tx.wait();
       setState((s) => ({ ...s, status: 'success', txHash: receipt.hash }));
       void fetchBalance();
+      onSwapSuccess?.();
     } catch (err: unknown) {
       let message = 'Swap failed';
       if (err && typeof err === 'object' && 'code' in err) {
@@ -227,7 +228,7 @@ export function useSwap(walletAddress: string | null) {
       }
       setState((s) => ({ ...s, status: 'error', error: message }));
     }
-  }, [walletAddress, inputAmount, slippage, isETH, fetchBalance]);
+  }, [walletAddress, inputAmount, slippage, isETH, fetchBalance, onSwapSuccess]);
 
   const reset = useCallback(() => {
     setInputAmount('');

@@ -10,8 +10,8 @@ import WalletReferralCard from "./WalletReferralCard";
 export default function PurchaseUranoSection() {
   const { errorModalOpen, errorModalTitle, errorModalMessage, showError, closeError } = useErrorModal();
   const { address } = useWalletConnect();
-  const { balance: uranoBalance } = useUranoBalance(address);
-  const hasUrano = uranoBalance > 0;
+  const { balanceInUsdc, refetch: refetchUranoBalance } = useUranoBalance(address);
+  const hasUrano = balanceInUsdc >= 200;
 
   return (
     <Box
@@ -51,7 +51,7 @@ export default function PurchaseUranoSection() {
         gap={{ xs: 3, md: 4 }}
       >
         <Box sx={{ width: "100%", maxWidth: 480, mx: "auto" }}>
-          <SwapWidget showError={showError} />
+          <SwapWidget showError={showError} onSwapSuccess={refetchUranoBalance} />
         </Box>
 
         {hasUrano && address && (

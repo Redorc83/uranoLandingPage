@@ -10,8 +10,8 @@ import WalletReferralCard from "./WalletReferralCard";
 export default function MobilePurchaseUranoSection() {
   const { errorModalOpen, errorModalTitle, errorModalMessage, showError, closeError } = useErrorModal();
   const { address } = useWalletConnect();
-  const { balance: uranoBalance } = useUranoBalance(address);
-  const hasUrano = uranoBalance > 0;
+  const { balanceInUsdc, refetch: refetchUranoBalance } = useUranoBalance(address);
+  const hasUrano = balanceInUsdc >= 200;
 
   return (
     <Box
@@ -47,7 +47,7 @@ export default function MobilePurchaseUranoSection() {
           <ConnectWalletButton showError={showError} />
         </Box>
         <Box width="100%">
-          <SwapWidget showError={showError} />
+          <SwapWidget showError={showError} onSwapSuccess={refetchUranoBalance} />
         </Box>
         {hasUrano && address && (
           <Box width="100%">

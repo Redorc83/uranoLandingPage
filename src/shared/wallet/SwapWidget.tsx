@@ -22,9 +22,10 @@ const TOKEN_OPTIONS: InputToken[] = ['USDC', 'ETH'];
 
 interface SwapWidgetProps {
   showError: (title: string, message: string) => void;
+  onSwapSuccess?: () => void;
 }
 
-const SwapWidget: React.FC<SwapWidgetProps> = ({ showError }) => {
+const SwapWidget: React.FC<SwapWidgetProps> = ({ showError, onSwapSuccess }) => {
   const theme = useTheme<Theme>();
   const { address, isWalletAvailable, connect, isConnecting } = useWalletConnect();
   const {
@@ -45,7 +46,7 @@ const SwapWidget: React.FC<SwapWidgetProps> = ({ showError }) => {
     switchChain,
     executeSwap,
     reset,
-  } = useSwap(address);
+  } = useSwap(address, onSwapSuccess);
 
   const handleConnectClick = () => {
     if (!isWalletAvailable) {
